@@ -39,7 +39,12 @@ jobs:
 
       - name: Install Vale
         if: steps.changed-files.outputs.count != '0'
-        run: sudo snap install vale
+        run: |
+          VALE_VERSION="3.4.1"
+          wget -q https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz
+          tar -xzf vale_${VALE_VERSION}_Linux_64-bit.tar.gz
+          sudo mv vale /usr/local/bin/
+          vale --version
 
       - name: Lint prose
         if: steps.changed-files.outputs.count != '0'
