@@ -132,9 +132,9 @@ for call in stream.tool_calls:
 
 ## Streaming sub-agents
 
-When a `create_agent` call invokes another `create_agent` (via a wrapping tool, typically), the inner agent's events flow at a nested namespace and surface as a handle on `stream.subgraphs`. Each handle exposes the inner agent's own `.messages`, `.values`, `.tool_calls`, and `.output` projections. The `name=` you pass to `create_agent` becomes `subagent.graph_name` (Python) / `subagent.name` (JS), which lets you filter and label per agent.
+When a `create_agent` call invokes another named `create_agent` (via a wrapping tool, typically), the inner agent's events flow at a nested namespace. The `name=` you pass to `create_agent` identifies that inner agent in the stream, so you can filter and label per agent.
 
-Every nested `CompiledStateGraph` shows up on `stream.subgraphs` — `create_agent` instances are one specific kind. Filter on the name to act only on the ones you care about.
+Named sub-agents surface on the dedicated `stream.subagents` projection. Each handle exposes the inner agent's own `.messages`, `.values`, `.tool_calls`, and `.output`, plus `.name` (the `name=` you passed) and `.cause` (the tool call that dispatched the sub-agent). Because only named `create_agent` runs appear here, you don't need to filter plain subgraphs out.
 
 ```py
 from langchain.agents import create_agent
@@ -147,7 +147,7 @@ def get_weather(city: str) -> str:
 
 
 weather_agent = create_agent(
-    model=init_chat_model("openai:gpt-5.4"),
+    model=init_chat_model("openai:gpt-5.5"),
     tools=[get_weather],
     name="weather_agent",
 )
@@ -160,7 +160,7 @@ def call_weather(query: str) -> str:
 
 
 supervisor = create_agent(
-    model=init_chat_model("openai:gpt-5.4"),
+    model=init_chat_model("openai:gpt-5.5"),
     tools=[call_weather],
     name="supervisor",
 )
@@ -170,10 +170,8 @@ stream = supervisor.stream_events(
     version="v3",
 )
 
-for subagent in stream.subgraphs:
-    if subagent.graph_name != "weather_agent":
-        continue
-    print(f"{subagent.graph_name}: ", end="")
+for subagent in stream.subagents:
+    print(f"{subagent.name}: ", end="")
     for message in subagent.messages:
         for token in message.text:
             print(token, end="", flush=True)
@@ -183,7 +181,12 @@ for subagent in stream.subgraphs:
 
 
 
-The same projection covers plain `StateGraph` subgraphs invoked from a tool — set `name=` on `.compile(name=...)` to get a label in `subagent.graph_name`. There's no separate sub-agent-only projection; the filter is what you write into your loop.
+Plain `StateGraph` subgraphs invoked from a tool also surface on `stream.subgraphs` — set `name=` on `.compile(name=...)` to get a label in `subagent.graph_name`.
+
+`stream.subagents` is the focused view of named `create_agent` sub-agents, while `stream.subgraphs` covers every nested graph. Use whichever matches your UI.
+
+
+
 
 ## State and final output
 
@@ -203,7 +206,25 @@ final_state = stream.output
 
 ## Multiple projections
 
-Use `stream.interleave(...)` when you want one sync loop over multiple projections:
+For concurrent consumption in async code, use `astream_events` with `asyncio.gather`:
+
+```py
+import asyncio
+
+stream = await agent.astream_events(input, version="v3")
+
+async def consume_messages():
+    async for message in stream.messages:
+        print(await message.text)
+
+async def consume_tool_calls():
+    async for call in stream.tool_calls:
+        print(call.tool_name, call.input)
+
+await asyncio.gather(consume_messages(), consume_tool_calls())
+```
+
+For synchronous code, use `stream.interleave(...)` instead:
 
 ```py
 stream = agent.stream_events(input, version="v3")
@@ -244,6 +265,64 @@ stream = agent.stream_events(
 for activity in stream.extensions["tool_activity"]:
     print(activity)
 ```
+
+
+
+
+### Register transformers on middleware
+
+<Note>Middleware-registered transformers require `langchain>=1.3.2`.</Note>
+
+
+
+
+Middleware can declare stream transformer factories alongside its hooks and tools. The factory shape differs between languages:
+
+Set the `transformers` attribute on an `AgentMiddleware` subclass to a sequence of factories. Each factory has the shape `Callable[[tuple[str, ...]], StreamTransformer]` and is invoked as `factory(scope)`, where `scope` is the mini-mux scope tuple (`()` for the root mux, non-empty for subgraphs). Returning a fresh transformer per call keeps each subgraph isolated.
+
+```py
+from langchain.agents import create_agent
+from langchain.agents.middleware import AgentMiddleware
+
+
+class ToolActivityMiddleware(AgentMiddleware):
+    transformers = (ToolActivityTransformer,)
+
+
+agent = create_agent(
+    model="gpt-5-nano",
+    tools=[get_weather],
+    middleware=[ToolActivityMiddleware()],
+)
+```
+
+
+
+
+At compile time, `create_agent` merges middleware-registered factories with anything passed to its own `transformers=` argument. The final order on the compiled graph is:
+
+1. The built-in `ToolCallTransformer`.
+2. Middleware-registered factories, in middleware order.
+3. Caller-supplied `transformers=` from `create_agent`.
+
+This keeps the built-in tool-call projection in front of consumer transformers and gives caller-supplied entries the final word.
+
+The built-in `PIIMiddleware` uses this hook to redact PII from streamed wire output. With `apply_to_output=True`, its registered transformer scrubs detected PII from text deltas, tool-call args, tool outputs, and state snapshots before they leave the run, closing the window where `after_model` state-level redaction would otherwise let raw PII through to live readers of `stream_events(version="v3")`.
+
+```py
+from langchain.agents import create_agent
+from langchain.agents.middleware import PIIMiddleware
+
+agent = create_agent(
+    model="gpt-5-nano",
+    tools=[],
+    middleware=[
+        PIIMiddleware("email", strategy="redact", apply_to_output=True),
+    ],
+)
+```
+
+See [PII detection](/oss/python/langchain/middleware/built-in#pii-detection) for the full configuration surface.
 
 
 

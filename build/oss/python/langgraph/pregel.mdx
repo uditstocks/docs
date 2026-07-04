@@ -4,7 +4,6 @@ sidebarTitle: Runtime
 ---
 
 
-
 [`Pregel`](https://reference.langchain.com/python/langgraph/pregel/main/Pregel) implements LangGraph's runtime, managing the execution of LangGraph applications.
 
 Compiling a [StateGraph](https://reference.langchain.com/python/langgraph/graph/state/StateGraph) or creating an [`@entrypoint`](https://reference.langchain.com/python/langgraph/func/entrypoint) produces a [`Pregel`](https://reference.langchain.com/python/langgraph/pregel/main/Pregel) instance that can be invoked with input.
@@ -81,10 +80,10 @@ total = BinaryOperatorAggregate(int, operator.add)
 
 
 
-### DeltaChannel (beta)
+### DeltaChannel
 
 <Warning>
-`DeltaChannel` requires `langgraph>=1.2` and is currently in beta. The API may change in future releases.
+`DeltaChannel` requires `langgraph>=1.2` and is currently in **beta**. The API may change in future releases.
 </Warning>
 
 [`DeltaChannel`](https://reference.langchain.com/python/langgraph/channels/delta/DeltaChannel) stores only the incremental delta at each step rather than the full accumulated value. This is most useful for channels that are written frequently and accumulate large values over time—for example, a conversation message list in a long-running thread. Without delta storage, the full list is re-serialized into every checkpoint; with `DeltaChannel`, only the new messages written at each step are stored.
@@ -175,6 +174,12 @@ class State(TypedDict):
 ```
 
 Higher values of `snapshot_frequency` reduce storage overhead but increase read latency. Lower values bound latency more tightly at the cost of larger checkpoints. `None` (the default) skips snapshots entirely—appropriate when reads are rare or threads are short.
+
+#### Version compatibility and rollbacks
+
+<Warning>
+**Rolling back to a version without `DeltaChannel` support is not supported.** `langgraph>=1.2` writes delta channel checkpoints in a new format that earlier versions cannot read. Once a thread has used `DeltaChannel`, downgrading LangGraph leaves those checkpoints unreadable as older runtimes do not understand the delta format and cannot reconstruct channel state. If you need to roll back, use the [delta-channel-dump recovery script](https://github.com/langchain-ai/langgraph/tree/main/examples/delta-channel-dump) to migrate affected threads, or discard them, before downgrading.
+</Warning>
 
 
 ## Examples
@@ -333,6 +338,10 @@ Below are a few different examples to give you a sense of the Pregel API.
     )
 
     app.invoke({"a": "foo"})
+    ```
+
+    ```console
+    { 'c': 'foofoo | foofoofoofoo' }
     ```
 
 

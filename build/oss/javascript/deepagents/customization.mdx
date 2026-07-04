@@ -6,23 +6,23 @@ description: Learn how to customize Deep Agents with system prompts, tools, suba
 
 import ChatModelTabsDaPy from '/snippets/chat-model-tabs-da.mdx';
 import ChatModelTabsDaJs from '/snippets/chat-model-tabs-da-js.mdx';
-import HitlBasicConfigPy from '/snippets/hitl-basic-config-py.mdx';
-import HitlBasicConfigJs from '/snippets/hitl-basic-config-js.mdx';
+import HitlBasicConfigPy from '/snippets/code-samples/hitl-basic-config-py.mdx';
+import HitlBasicConfigJs from '/snippets/code-samples/hitl-basic-config-js.mdx';
 import SkillsUsageTabsPy from '/snippets/skills-usage-tabs-py.mdx';
 import SkillsUsageTabsJs from '/snippets/skills-usage-tabs-js.mdx';
-import BackendStatePy from '/snippets/backend-state-py.mdx';
-import BackendStateJs from '/snippets/backend-state-js.mdx';
-import BackendFilesystemPy from '/snippets/backend-filesystem-py.mdx';
-import BackendFilesystemJs from '/snippets/backend-filesystem-js.mdx';
-import BackendLocalShellPy from '/snippets/backend-local-shell-py.mdx';
-import BackendLocalShellJs from '/snippets/backend-local-shell-js.mdx';
-import BackendStorePy from '/snippets/backend-store-py.mdx';
-import BackendStoreJs from '/snippets/backend-store-js.mdx';
-import BackendContextHubPy from '/snippets/backend-context-hub-py.mdx';
-import BackendCompositePy from '/snippets/backend-composite-py.mdx';
-import BackendCompositeJs from '/snippets/backend-composite-js.mdx';
-import SubagentBasicPy from '/snippets/subagent-basic-py.mdx';
-import SubagentBasicJs from '/snippets/subagent-basic-js.mdx';
+import BackendStatePy from '/snippets/code-samples/backend-state-py.mdx';
+import BackendStateJs from '/snippets/code-samples/backend-state-js.mdx';
+import BackendFilesystemPy from '/snippets/code-samples/backend-filesystem-py.mdx';
+import BackendFilesystemJs from '/snippets/code-samples/backend-filesystem-js.mdx';
+import BackendLocalShellPy from '/snippets/code-samples/backend-local-shell-py.mdx';
+import BackendLocalShellJs from '/snippets/code-samples/backend-local-shell-js.mdx';
+import BackendStorePy from '/snippets/code-samples/backend-store-py.mdx';
+import BackendStoreJs from '/snippets/code-samples/backend-store-js.mdx';
+import BackendContextHubPy from '/snippets/code-samples/backend-context-hub-py.mdx';
+import BackendCompositePy from '/snippets/code-samples/backend-composite-py.mdx';
+import BackendCompositeJs from '/snippets/code-samples/backend-composite-js.mdx';
+import SubagentBasicPy from '/snippets/code-samples/subagent-basic-py.mdx';
+import SubagentBasicJs from '/snippets/code-samples/subagent-basic-js.mdx';
 import SandboxBasicPy from '/snippets/deepagents-sandbox-basic-py.mdx';
 import SandboxBasicJs from '/snippets/deepagents-sandbox-basic-js.mdx';
 import CreateDeepAgentConfigOptionsPy from '/snippets/create-deep-agent-config-options-py.mdx';
@@ -49,36 +49,54 @@ import CustomizationProfilesPy from '/snippets/code-samples/customization-profil
 import CustomizationStructuredOutputPy from '/snippets/code-samples/customization-structured-output-py.mdx';
 import CustomizationStructuredOutputJs from '/snippets/code-samples/customization-structured-output-js.mdx';
 
-
-
-`createDeepAgent` has the following configuration options:
-
-
-- [Model](#model)
-- [Tools](#tools)
-- [System Prompt](#system-prompt)
-- [Middleware](#middleware), including [prebuilt middleware](#prebuilt-middleware) and [custom middleware](#custom-middleware)
-- [Interpreters](#interpreters)
-- [Subagents](#subagents)
-- [Backends (virtual filesystems)](#backends)
-- [Human-in-the-loop](#human-in-the-loop)
-- [Skills](#skills)
-- [Memory](#memory)
-- [Profiles](#profiles)
+Build the harness around your goal. `create_deep_agent` gives you a production-ready foundation: connect it to your data, shape its behavior, and add the capabilities your use case needs.
 
 
 
-<CreateDeepAgentConfigOptionsJs />
+`createDeepAgent` ships with a pre-assembled harness: filesystem, summarization, subagents, and prompt caching by default. The parameters below let you define the agent's persona, connect it to your data and tools, and extend the [default middleware stack](#default-stack-main-agent) with additional middleware.
 
-For the full parameter list, see the [`createDeepAgent`](https://reference.langchain.com/javascript/deepagents/types/CreateDeepAgentParams) API reference.
+```typescript
+import { createDeepAgent } from "deepagents";
 
+const agent = await createDeepAgent({
+  model: "anthropic:claude-sonnet-4-6",
+  systemPrompt: "You are a helpful assistant.",
+  tools: [search, fetchUrl],
+  memory: ["./AGENTS.md"],
+  skills: ["./skills/"],
+});
+```
+
+| Parameter | What it does |
+|---|---|
+| `model` | Which model to use |
+| `systemPrompt` | Custom instructions for the agent |
+| `tools` | Domain tools the agent can call |
+| `memory` | AGENTS.md files loaded at startup |
+| `skills` | Skills directory for on-demand knowledge |
+| `backend` | Filesystem backend (StateBackend by default) |
+| `permissions` | Path-level access control for the filesystem |
+| `subagents` | Custom subagents for delegated tasks |
+| `middleware` | Extra middleware appended to the [default stack](#default-stack-main-agent) |
+| `interruptOn` | Pause before tool calls for human approval |
+| `responseFormat` | Structured output schema |
+| [`contextSchema`](/oss/javascript/deepagents/context-engineering#runtime-context) | Per-run runtime context schema (user IDs, API keys, feature flags) |
+
+For the full parameter list, see the [`createDeepAgent`](https://reference.langchain.com/javascript/deepagents/types/CreateDeepAgentParams) API reference. To compose a fully custom harness from scratch, see [Configure the harness](/oss/javascript/langchain/agents#configure-the-harness).
+
+
+<Tip>
+As you add tools, subagents, and backends, use [LangSmith](https://smith.langchain.com?utm_source=docs&utm_medium=cta&utm_campaign=langsmith-signup&utm_content=oss-deepagents-customization) to trace how each piece behaves together. Follow the [observability quickstart](/langsmith/observability-quickstart) to get set up, and see [Going to production](/oss/javascript/deepagents/going-to-production) for deployment on LangSmith.
+
+We recommend you also set up [LangSmith Engine](/langsmith/engine), which monitors your traces, detects issues, and proposes fixes.
+</Tip>
 
 ## Model
 
 Pass a `model` string in `provider:model` format, or an initialized model instance. See [supported models](/oss/javascript/deepagents/models#supported-models) for all providers and [suggested models](/oss/javascript/deepagents/models#suggested-models) for tested recommendations.
 
 <Tip>
-    Use the `provider:model` format (for example `openai:gpt-5.4`) to quickly switch between models.
+    Use the `provider:model` format (for example `openai:gpt-5.5`) to quickly switch between models.
 </Tip>
 
 
@@ -92,12 +110,52 @@ Pass a `model` string in `provider:model` format, or an initialized model instan
 
 ## Tools
 
-In addition to [built-in tools](/oss/javascript/deepagents/overview#core-capabilities) for planning, file management, and subagent spawning, you can provide custom tools:
+In addition to [built-in tools](/oss/javascript/deepagents/overview#execution-environment) for planning, file management, and subagent spawning, you can provide custom tools:
 
 
 
 <CustomizationToolsJs />
 
+
+### MCP tools
+
+<Tip>
+  Deep Agents fully support [Model Context Protocol (MCP)](/oss/javascript/langchain/mcp) tools. You can load tools from any MCP server—databases, APIs, file systems, and more—and pass them directly to `create_deep_agent`.
+</Tip>
+
+
+
+Install `@langchain/mcp-adapters` to connect to MCP servers:
+
+```bash
+npm install @langchain/mcp-adapters
+```
+
+```ts
+import { MultiServerMCPClient } from "@langchain/mcp-adapters";
+import { createDeepAgent } from "deepagents";
+
+const client = new MultiServerMCPClient({
+    my_server: {
+        transport: "http",
+        url: "http://localhost:8000/mcp",
+    },
+});
+
+const tools = await client.getTools();
+
+const agent = await createDeepAgent({
+    model: "openai:gpt-5.5",
+    tools,
+});
+
+const result = await agent.invoke({
+    messages: [{ role: "user", content: "Use the MCP server to help me." }],
+});
+```
+
+
+For detailed configuration options including stdio servers, OAuth authentication, tool filtering, and stateful sessions, see the full [MCP guide](/oss/javascript/langchain/mcp).
 
 ## System prompt
 
@@ -161,12 +219,12 @@ agent = create_deep_agent(
 ```
 
 <Note>
-    Passing a `SystemMessage` (rather than a string) triggers a different concatenation path: the right-hand assembly (`BASE`-or-`CUSTOM` plus any `SUFFIX`) is appended as an additional text content block onto the message's existing `content_blocks`. The same logical ordering applies (caller blocks first), and any `cache_control` markers on the caller's blocks are preserved — useful for placing explicit Anthropic prompt-cache breakpoints.
+    Passing a `SystemMessage` (rather than a string) triggers a different concatenation path: the right-hand assembly (`BASE`-or-`CUSTOM` plus any `SUFFIX`) is appended as an additional text content block onto the message's existing `content_blocks`. The same logical ordering applies (caller blocks first), and any `cache_control` markers on the caller's blocks are preserved—useful for placing explicit Anthropic prompt-cache breakpoints.
 </Note>
 
 <AccordionGroup>
     <Accordion title="Subagent prompts">
-        The same overlay rules apply to declarative [subagents](/oss/javascript/deepagents/subagents) — each subagent re-runs profile resolution against **its own model**, then applies the resolved profile's `base_system_prompt` / `system_prompt_suffix` to its authored `system_prompt`. The subagent's `system_prompt` plays the `BASE` role; `CUSTOM` and `SUFFIX` come from the profile that matches the subagent's model (which may differ from the main agent's profile).
+        The [prompt assembly](#prompt-assembly) overlay rules also apply to declarative [subagents](/oss/javascript/deepagents/subagents): each subagent re-runs profile resolution against **its own model**, then applies the resolved profile's `base_system_prompt` / `system_prompt_suffix` to its authored `system_prompt`. The subagent's `system_prompt` plays the `BASE` role; `CUSTOM` and `SUFFIX` come from the profile that matches the subagent's model (which may differ from the main agent's profile).
 
         | `spec["system_prompt"]` | profile `base_system_prompt` (`CUSTOM`) | profile `system_prompt_suffix` (`SUFFIX`) | Final subagent system prompt |
         | ----------------------- | :-------------------------------------: | :---------------------------------------: | ---------------------------- |
@@ -175,12 +233,12 @@ agent = create_deep_agent(
         | authored                |                    ✓                    |                     -                     | `CUSTOM`                     |
         | authored                |                    ✓                    |                     ✓                     | `CUSTOM` + `SUFFIX`          |
 
-        There is no `USER` segment for subagents — the spec's authored `system_prompt` is the closest analog and stays in the `BASE` slot. A profile that ships only a `system_prompt_suffix` (the common case for built-in Anthropic / OpenAI profiles) just appends to whatever the subagent author wrote; a profile that sets `base_system_prompt` will *replace* the authored prompt outright, so reach for that field deliberately.
+        There is no `USER` segment for subagents. The spec's authored `system_prompt` is the closest analog and stays in the `BASE` slot. A profile that ships only a `system_prompt_suffix` (the common case for built-in Anthropic / OpenAI profiles) just appends to whatever the subagent author wrote. A profile that sets `base_system_prompt` will *replace* the authored prompt outright.
     </Accordion>
     <Accordion title="General-purpose subagent prompt">
-        The auto-added [general-purpose subagent](/oss/javascript/deepagents/subagents#the-general-purpose-subagent) follows the same overlay rules with one extra layer: the GP base prompt is resolved as **`general_purpose_subagent.system_prompt` (if set) -> `HarnessProfile.base_system_prompt` (if set) -> SDK GP default**. The profile suffix layers on top either way.
+        The auto-added [general-purpose subagent](/oss/javascript/deepagents/subagents#the-general-purpose-subagent) follows the [prompt assembly](#prompt-assembly) overlay rules with one extra layer: the GP base prompt is resolved as **`general_purpose_subagent.system_prompt` (if set) -> `HarnessProfile.base_system_prompt` (if set) -> SDK general-purpose default**. The profile suffix layers on top either way.
 
-        The two override fields can both carry a base-prompt replacement, but they are not interchangeable. `general_purpose_subagent.system_prompt` is GP-specific configuration; `base_system_prompt` is a global override that primarily targets the main agent. When both are set, the **GP-specific intent wins for the GP subagent** so a user tuning both fields never sees their GP override silently dropped:
+        The two override fields can both carry a base-prompt replacement, but they are not interchangeable. `general_purpose_subagent.system_prompt` is general-purpose-specific configuration; `base_system_prompt` is a global override that primarily targets the main agent. When both are set, the **general-purpose-specific intent wins for the general-purpose subagent** so a user tuning both fields never sees their GP override silently dropped:
 
         ```python
         register_harness_profile(
@@ -200,28 +258,60 @@ agent = create_deep_agent(
         | Main agent | `"You are ACME's support orchestrator." + SUFFIX` |
         | GP subagent | `"You are a research subagent. Cite sources." + SUFFIX` |
 
-        If `general_purpose_subagent.system_prompt` is unset, the GP subagent falls back to `base_system_prompt` (when set) and finally to the SDK GP default.
+        If `general_purpose_subagent.system_prompt` is unset, the GP subagent falls back to `base_system_prompt` (when set) and finally to the SDK general-purpose default.
     </Accordion>
 </AccordionGroup>
 
 ## Middleware
 
-Deep Agents support any [middleware](/oss/javascript/langchain/middleware/overview), including the built-in middleware listed below, prebuilt middleware from LangChain, provider-specific middleware, and custom middleware you write yourself. Pass middleware to the `middleware` argument of `create_deep_agent`.
+Deep Agents support any [middleware](/oss/javascript/langchain/middleware/overview), including the built-in middleware listed below, prebuilt middleware from LangChain, provider-specific middleware, and custom middleware you write yourself.
+
+
+
+Pass middleware to the `middleware` argument of `createDeepAgent`. Custom middleware is appended after [`PatchToolCallsMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createPatchToolCallsMiddleware) in the [default stack](#default-stack-main-agent).
+
 
 By default, Deep Agents have access to the following middleware:
 
-- [`TodoListMiddleware`](https://reference.langchain.com/javascript/langchain/index/todoListMiddleware): Tracks and manages todo lists for organizing agent tasks and work
-- [`FilesystemMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createFilesystemMiddleware): Handles file system operations such as reading, writing, and navigating directories
-- [`SubAgentMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createSubAgentMiddleware): Spawns and coordinates subagents for delegating tasks to specialized agents
-- [`SummarizationMiddleware`](https://reference.langchain.com/javascript/langchain/index/summarizationMiddleware): Condenses message history to stay within context limits when conversations grow long
-- [`AnthropicPromptCachingMiddleware`](https://reference.langchain.com/javascript/langchain/index/anthropicPromptCachingMiddleware): Automatic reduction of redundant token processing when using Anthropic models
-- [`PatchToolCallsMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createPatchToolCallsMiddleware): Automatic message history fixes when tool calls are interrupted or cancelled before receiving results
+### Default stack (main agent)
 
-If you are using memory, skills, or human-in-the-loop, the following middleware is also included:
+From first to last:
 
-- [`MemoryMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createMemoryMiddleware): Persists and retrieves conversation context across sessions when the `memory` argument is provided
-- [`SkillsMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createSkillsMiddleware): Enables custom skills when the `skills` argument is provided
-- `HumanInTheLoopMiddleware`: Pauses for human approval or input at specified points when the `interruptOn` argument is provided
+
+
+1. [`TodoListMiddleware`](https://reference.langchain.com/javascript/langchain/index/todoListMiddleware): Tracks and manages todo lists for organizing agent tasks and work.
+2. [`SkillsMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createSkillsMiddleware): Only when you pass `skills`. Injected **immediately after** the todo middleware and **before** filesystem middleware so skill metadata is available before file tools run.
+3. [`FilesystemMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createFilesystemMiddleware): Handles file system operations such as reading, writing, and navigating directories. When you pass `permissions`, filesystem permissions enforcement is included here so it can evaluate every tool the agent might call.
+4. [`SubAgentMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createSubAgentMiddleware): Spawns and coordinates subagents for delegating tasks to specialized agents.
+5. [`SummarizationMiddleware`](https://reference.langchain.com/javascript/langchain/index/summarizationMiddleware): Condenses message history to stay within context limits when conversations grow long (via [createSummarizationMiddleware](https://reference.langchain.com/javascript/deepagents/middleware/createSummarizationMiddleware)).
+6. [`PatchToolCallsMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createPatchToolCallsMiddleware): Repairs dangling tool calls in message history when a run resumes after an interruption or receives malformed tool-call arguments. Runs **before** Anthropic prompt caching and the tail stack below.
+7. [`AsyncSubAgentMiddleware`](https://reference.langchain.com/javascript/deepagents/agent/createDeepAgent): Only when you configure async subagents.
+8. **Your middleware argument**: Optional middleware you pass as the `middleware` argument is appended here (after Patch, before the tail stack).
+9. **Harness profile extras**: Provider-specific middleware from the resolved model profile, if any.
+10. **Excluded-tool filtering**: When the harness profile lists excluded tools, middleware removes those tools from the agent.
+11. **Prompt caching** ([`AnthropicPromptCachingMiddleware`](https://reference.langchain.com/javascript/langchain/index/anthropicPromptCachingMiddleware) and [`BedrockPromptCachingMiddleware`](https://reference.langchain.com/javascript/langchain/index/bedrockPromptCachingMiddleware)): Added automatically for Anthropic models and Amazon Bedrock Converse models, respectively. Both run **after** Patch and after your middleware so the cached prefix matches what is actually sent to the model.
+12. [`MemoryMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createMemoryMiddleware): Only when you pass `memory`.
+
+    <Note>
+    `MemoryMiddleware` is placed **after** profile extras and the prompt caching middleware so updates to injected memory are less likely to invalidate the cache prefix. The same ordering concern is called out in the `createDeepAgent` implementation comments.
+    </Note>
+
+13. `HumanInTheLoopMiddleware`: Only when you pass `interruptOn`. Pauses for human approval or input at configured tool calls.
+
+
+
+### Default stack (synchronous subagents)
+
+
+
+The built-in **general-purpose** subagent and each declarative synchronous `SubAgent` graph use a stack that `createDeepAgent` builds in code. It matches the main agent in broad shape (todo list, filesystem, summarization, Patch, profile extras, Anthropic and Bedrock caching, optional permissions) but differs in two ways:
+
+- **Skills run after** [`PatchToolCallsMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createPatchToolCallsMiddleware) on these inner agents (on the main agent, skills run **before** filesystem middleware when `skills` is set).
+- There is **no** [`SubAgentMiddleware`](https://reference.langchain.com/javascript/deepagents/middleware/createSubAgentMiddleware) inside a subagent graph (only the parent agent exposes the `task` tool).
+
+When a declarative subagent sets `interruptOn`, that value is forwarded to `createAgent` for the subagent, which wires up human-in-the-loop handling for the configured tool calls.
+
+
 
 ### Prebuilt middleware
 
@@ -270,7 +360,6 @@ Do **not** do this:
 Mutation in place, such as modifying `state.x` in `beforeAgent`, mutating a shared variable in `beforeAgent`, or changing other shared values in hooks, can lead to subtle bugs and race conditions because many operations run concurrently (subagents, parallel tools, and parallel invocations on different threads).
 
 
-For full details on extending state with custom properties, see [Custom middleware - Custom state schema](/oss/javascript/langchain/middleware/custom#custom-state-schema).
 If you must use mutation in custom middleware, consider what happens when subagents, parallel tools, or concurrent agent invocations run at the same time.
 </Warning>
 
@@ -283,7 +372,7 @@ Use [interpreters](/oss/javascript/deepagents/interpreters) to add an `eval` too
 <CustomizationInterpretersJs />
 
 
-For setup, programmatic tool calling, interpreter skills, and limits, see [Interpreters](/oss/javascript/deepagents/interpreters).
+For setup, programmatic tool calling, subagent orchestration, and limits, see [Interpreters](/oss/javascript/deepagents/interpreters).
 
 ## Subagents
 
@@ -330,6 +419,10 @@ If you are using [skills](#skills) or [memory](#memory), you must add the expect
 
         <BackendFilesystemJs />
 
+
+        <Tip>
+            Wrap `FilesystemBackend` in a `CompositeBackend` to prevent internal agent data (offloaded tool results, conversation history) from being written to disk alongside your project files. See the [recommended pattern](/oss/javascript/deepagents/backends#filesystembackend-local-disk).
+        </Tip>
     </Tab>
     <Tab title="LocalShellBackend">
         A filesystem with shell execution directly on the host. Provides filesystem tools plus the `execute` tool for running commands.
@@ -352,6 +445,10 @@ If you are using [skills](#skills) or [memory](#memory), you must add the expect
 
         <BackendStoreJs />
 
+
+        <Note>
+            When deploying to [LangSmith Deployment](/langsmith/deployment), omit the `store` parameter. The platform automatically provisions a store for your agent.
+        </Note>
 
         <Tip>
             The `namespace` parameter controls data isolation. For multi-user deployments, always set a [namespace factory](/oss/javascript/deepagents/backends#namespace-factories) to isolate data per user or tenant.
@@ -455,6 +552,12 @@ When the model generates the structured data, it's captured, validated, and retu
 
 
 For more information and examples, see [response format](/oss/javascript/langchain/structured-output#response-format).
+
+## Advanced
+
+
+
+`createDeepAgent` pre-assembles a middleware stack on top of `createAgent`. To build a fully custom agent—choosing exactly which capabilities to include—see [Configure the harness](/oss/javascript/langchain/agents#configure-the-harness).
 
 ---
 

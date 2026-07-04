@@ -3,7 +3,6 @@ title: Memory
 ---
 
 
-
 AI applications need [memory](/oss/javascript/concepts/memory) to share context across multiple interactions. In LangGraph, you can add two types of memory:
 
 * [Add short-term memory](#add-short-term-memory) as a part of your agent's [state](/oss/javascript/langgraph/graph-api#state) to enable multi-turn conversations.
@@ -41,7 +40,7 @@ In production, use a checkpointer backed by a database:
     ```typescript
     import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 
-    const DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable";
+    const DB_URI = "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable";
     const checkpointer = PostgresSaver.fromConnString(DB_URI);
 
     const builder = new StateGraph(...);
@@ -85,7 +84,7 @@ In production, use a checkpointer backed by a database:
 
   const model = new ChatAnthropic({ model: "claude-haiku-4-5-20251001" });
 
-  const DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable";
+  const DB_URI = "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable";
   const checkpointer = PostgresSaver.fromConnString(DB_URI);
   // await checkpointer.setup();
 
@@ -106,18 +105,20 @@ In production, use a checkpointer backed by a database:
     }
   };
 
-  for await (const chunk of await graph.stream(
+  const stream1 = await graph.streamEvents(
     { messages: [{ role: "user", content: "hi! I'm bob" }] },
-    { ...config, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { ...config, version: "v3" }
+  );
+  for await (const snapshot of stream1.values) {
+    console.log(snapshot);
   }
 
-  for await (const chunk of await graph.stream(
+  const stream2 = await graph.streamEvents(
     { messages: [{ role: "user", content: "what's my name?" }] },
-    { ...config, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { ...config, version: "v3" }
+  );
+  for await (const snapshot of stream2.values) {
+    console.log(snapshot);
   }
   ```
 
@@ -163,18 +164,20 @@ In production, use a checkpointer backed by a database:
 
   const config = { configurable: { thread_id: "1" } };
 
-  for await (const chunk of await graph.stream(
+  const stream1 = await graph.streamEvents(
     { messages: [{ role: "user", content: "hi! I'm bob" }] },
-    { ...config, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { ...config, version: "v3" }
+  );
+  for await (const snapshot of stream1.values) {
+    console.log(snapshot);
   }
 
-  for await (const chunk of await graph.stream(
+  const stream2 = await graph.streamEvents(
     { messages: [{ role: "user", content: "what's my name?" }] },
-    { ...config, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { ...config, version: "v3" }
+  );
+  for await (const snapshot of stream2.values) {
+    console.log(snapshot);
   }
   ```
 
@@ -244,7 +247,6 @@ Once you compile a graph with a store, LangGraph automatically injects the store
 
 ```typescript
 import { StateGraph, StateSchema, MessagesValue, GraphNode, START } from "@langchain/langgraph";
-import { v4 as uuidv4 } from "uuid";
 
 const State = new StateSchema({
   messages: MessagesValue,
@@ -264,7 +266,7 @@ const callModel: GraphNode<typeof State> = async (state, runtime) => {
   // ... Use memories in model call
 
   // Store a new memory
-  await runtime.store?.put(namespace, uuidv4(), { data: "User prefers dark mode" });
+  await runtime.store?.put(namespace, crypto.randomUUID(), { data: "User prefers dark mode" });
 };
 
 const builder = new StateGraph(State)
@@ -292,7 +294,7 @@ In production, use a store backed by a database:
     ```typescript
     import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
 
-    const DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable";
+    const DB_URI = "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable";
     const store = PostgresStore.fromConnString(DB_URI);
 
     const builder = new StateGraph(...);
@@ -332,7 +334,6 @@ In production, use a store backed by a database:
   import { StateGraph, StateSchema, MessagesValue, GraphNode, START } from "@langchain/langgraph";
   import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
   import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
-  import { v4 as uuidv4 } from "uuid";
 
   const State = new StateSchema({
     messages: MessagesValue,
@@ -351,7 +352,7 @@ In production, use a store backed by a database:
     const lastMessage = state.messages.at(-1);
     if (lastMessage?.content?.toLowerCase().includes("remember")) {
       const memory = "User name is Bob";
-      await runtime.store?.put(namespace, uuidv4(), { data: memory });
+      await runtime.store?.put(namespace, crypto.randomUUID(), { data: memory });
     }
 
     const response = await model.invoke([
@@ -361,7 +362,7 @@ In production, use a store backed by a database:
     return { messages: [response] };
   };
 
-  const DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable";
+  const DB_URI = "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable";
 
   const store = PostgresStore.fromConnString(DB_URI);
   const checkpointer = PostgresSaver.fromConnString(DB_URI);
@@ -377,18 +378,20 @@ In production, use a store backed by a database:
     store,
   });
 
-  for await (const chunk of await graph.stream(
+  const stream1 = await graph.streamEvents(
     { messages: [{ role: "user", content: "Hi! Remember: my name is Bob" }] },
-    { configurable: { thread_id: "1" }, context: { userId: "1" }, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { configurable: { thread_id: "1" }, context: { userId: "1" }, version: "v3" }
+  );
+  for await (const snapshot of stream1.values) {
+    console.log(snapshot);
   }
 
-  for await (const chunk of await graph.stream(
+  const stream2 = await graph.streamEvents(
     { messages: [{ role: "user", content: "what is my name?" }] },
-    { configurable: { thread_id: "2" }, context: { userId: "1" }, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { configurable: { thread_id: "2" }, context: { userId: "1" }, version: "v3" }
+  );
+  for await (const snapshot of stream2.values) {
+    console.log(snapshot);
   }
   ```
 
@@ -403,7 +406,6 @@ In production, use a store backed by a database:
   import { ChatAnthropic } from "@langchain/anthropic";
   import { MemorySaver, StateGraph, StateSchema, MessagesValue, GraphNode, START } from "@langchain/langgraph";
   import { MongoDBStore } from "@langchain/langgraph-checkpoint-mongodb";
-  import { v4 as uuidv4 } from "uuid";
 
   const State = new StateSchema({
     messages: MessagesValue,
@@ -422,7 +424,7 @@ In production, use a store backed by a database:
     const lastMessage = state.messages.at(-1);
     if (lastMessage?.content?.toLowerCase().includes("remember")) {
       const memory = "User name is Bob";
-      await runtime.store?.put(namespace, uuidv4(), { data: memory });
+      await runtime.store?.put(namespace, crypto.randomUUID(), { data: memory });
     }
 
     const response = await model.invoke([
@@ -447,18 +449,20 @@ In production, use a store backed by a database:
 
   const graph = builder.compile({ checkpointer, store });
 
-  for await (const chunk of await graph.stream(
+  const stream1 = await graph.streamEvents(
     { messages: [{ role: "user", content: "Hi! Remember: my name is Bob" }] },
-    { configurable: { thread_id: "1" }, context: { userId: "1" }, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { configurable: { thread_id: "1" }, context: { userId: "1" }, version: "v3" }
+  );
+  for await (const snapshot of stream1.values) {
+    console.log(snapshot);
   }
 
-  for await (const chunk of await graph.stream(
+  const stream2 = await graph.streamEvents(
     { messages: [{ role: "user", content: "what is my name?" }] },
-    { configurable: { thread_id: "2" }, context: { userId: "1" }, streamMode: "values" }
-  )) {
-    console.log(chunk.messages.at(-1)?.content);
+    { configurable: { thread_id: "2" }, context: { userId: "1" }, version: "v3" }
+  );
+  for await (const snapshot of stream2.values) {
+    console.log(snapshot);
   }
   ```
 
@@ -549,12 +553,13 @@ const items = await store.search(["user_123", "memories"], {
           .addEdge(START, "chat");
         const graph = builder.compile({ store });
 
-        for await (const [message, metadata] of await graph.stream(
+        const stream = await graph.streamEvents(
           { messages: [{ role: "user", content: "I'm hungry" }] },
-          { streamMode: "messages" }
-        )) {
-          if (message.content) {
-            console.log(message.content);
+          { version: "v3" }
+        );
+        for await (const message of stream.messages) {
+          for await (const token of message.text) {
+            process.stdout.write(token);
           }
         }
         ```
@@ -609,12 +614,13 @@ const items = await store.search(["user_123", "memories"], {
           .addEdge(START, "chat");
         const graph = builder.compile({ store });
 
-        for await (const [message, metadata] of await graph.stream(
+        const stream = await graph.streamEvents(
           { messages: [{ role: "user", content: "I'm hungry" }] },
-          { streamMode: "messages" }
-        )) {
-          if (message.content) {
-            console.log(message.content);
+          { version: "v3" }
+        );
+        for await (const message of stream.messages) {
+          for await (const token of message.text) {
+            process.stdout.write(token);
           }
         }
         ```
@@ -674,12 +680,13 @@ const items = await store.search(["user_123", "memories"], {
           .addEdge(START, "chat");
         const graph = builder.compile({ store });
 
-        for await (const [message, metadata] of await graph.stream(
+        const stream = await graph.streamEvents(
           { messages: [{ role: "user", content: "I'm hungry" }] },
-          { streamMode: "messages" }
-        )) {
-          if (message.content) {
-            console.log(message.content);
+          { version: "v3" }
+        );
+        for await (const message of stream.messages) {
+          for await (const token of message.text) {
+            process.stdout.write(token);
           }
         }
         ```
@@ -855,18 +862,20 @@ When deleting messages, **make sure** that the resulting message history is vali
 
   const config = { configurable: { thread_id: "1" } };
 
-  for await (const event of await app.stream(
+  const stream1 = await app.streamEvents(
     { messages: [{ role: "user", content: "hi! I'm bob" }] },
-    { ...config, streamMode: "values" }
-  )) {
-    console.log(event.messages.map(message => [message.getType(), message.content]));
+    { ...config, version: "v3" }
+  );
+  for await (const snapshot of stream1.values) {
+    console.log(snapshot.messages.map(message => [message.getType(), message.content]));
   }
 
-  for await (const event of await app.stream(
+  const stream2 = await app.streamEvents(
     { messages: [{ role: "user", content: "what's my name?" }] },
-    { ...config, streamMode: "values" }
-  )) {
-    console.log(event.messages.map(message => [message.getType(), message.content]));
+    { ...config, version: "v3" }
+  );
+  for await (const snapshot of stream2.values) {
+    console.log(snapshot.messages.map(message => [message.getType(), message.content]));
   }
   ```
 
@@ -962,7 +971,6 @@ const summarizeConversation: GraphNode<typeof State> = async (state) => {
     MemorySaver,
   } from "@langchain/langgraph";
   import * as z from "zod";
-  import { v4 as uuidv4 } from "uuid";
 
   const memory = new MemorySaver();
 
@@ -982,7 +990,7 @@ const summarizeConversation: GraphNode<typeof State> = async (state) => {
     let { messages } = state;
     if (summary) {
       const systemMessage = new SystemMessage({
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         content: `Summary of conversation earlier: ${summary}`,
       });
       messages = [systemMessage, ...messages];
@@ -1019,7 +1027,7 @@ const summarizeConversation: GraphNode<typeof State> = async (state) => {
 
     const allMessages = [
       ...messages,
-      new HumanMessage({ id: uuidv4(), content: summaryMessage }),
+      new HumanMessage({ id: crypto.randomUUID(), content: summaryMessage }),
     ];
 
     const response = await model.invoke(allMessages);
@@ -1134,7 +1142,7 @@ await checkpointer.deleteThread(threadId);
 
 ## Database management
 
-If you are using any database-backed persistence implementation (such as Postgres or Redis) to store short and/or long-term memory, you will need to run migrations to set up the required schema before you can use it with your database.
+If you are using any database-backed persistence implementation (such as Postgres, Redis, or Oracle) to store short and/or long-term memory, you will need to run migrations to set up the required schema before you can use it with your database.
 
 By convention, most database-specific libraries define a `setup()` method on the checkpointer or store instance that runs the required migrations. However, you should check with your specific implementation of [`BaseCheckpointSaver`](https://reference.langchain.com/javascript/langchain-langgraph/index/BaseCheckpointSaver) or [`BaseStore`](https://reference.langchain.com/javascript/langchain-core/stores/BaseStore) to confirm the exact method name and usage.
 

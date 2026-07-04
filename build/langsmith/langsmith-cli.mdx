@@ -22,6 +22,14 @@ curl -fsSL https://cli.langsmith.com/install.sh | sh
 irm https://cli.langsmith.com/install.ps1 | iex
 ```
 
+```bash Homebrew
+brew install langchain-ai/tap/langsmith-cli
+```
+
+```powershell Scoop
+scoop install langsmith-cli
+```
+
 ```bash GitHub Releases
 # Download the latest binary for your platform:
 # https://github.com/langchain-ai/langsmith-cli/releases
@@ -92,7 +100,7 @@ Optionally, set a default project for queries:
 export LANGSMITH_PROJECT="my-default-project"
 ```
 
-If you're using LangSmith [self-hosted](/langsmith/self-hosted) or [hybrid](/langsmith/hybrid), also set the endpoint:
+If you're using LangSmith [self-hosted](/langsmith/self-hosted), also set the endpoint:
 
 ```bash
 export LANGSMITH_ENDPOINT="https://your-langsmith-instance.com"

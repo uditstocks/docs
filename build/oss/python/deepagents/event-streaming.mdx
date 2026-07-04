@@ -1,6 +1,7 @@
 ---
 title: Event streaming
 description: Stream subagents, messages, tool calls, and final output from Deep Agents.
+tag: "Beta"
 ---
 
 This page covers streaming concerns specific to Deep Agents—most importantly, streaming from delegated subagents via `stream.subagents`. For general agent streaming (`stream.messages`, `stream.values`, tool calls, custom updates), see [LangChain Event Streaming](/oss/python/langchain/event-streaming).
@@ -8,6 +9,8 @@ This page covers streaming concerns specific to Deep Agents—most importantly, 
 ## Stream subagents
 
 Deep Agents add a subagent projection on top of LangGraph streaming. Use `stream.subagents` when you want one stream handle per delegated `task` call. The projection is lightweight: it discovers subagent tasks first, and message, tool-call, and value streams are opened only when you access them on a subagent handle.
+
+Each handle's `name` is the sub-agent's configured name: the `subagent_type` the coordinator passes when it calls the `task` tool. Deep Agents binds that name to the delegated run, so the same label you defined in your subagent specs is what you filter and route on in the stream.
 
 ```py
 stream = agent.stream_events({
@@ -35,7 +38,7 @@ Python uses snake_case projection names such as `tool_calls`. Each subagent stre
 
 | Field | Description |
 | ----- | ----------- |
-| `name` | Subagent name. |
+| `name` | Sub-agent name, taken from the `subagent_type` the coordinator selects in its `task` call. |
 | `messages` | Messages emitted by the subagent. |
 | `subagents` | Nested subagent invocations. |
 | `output` | Final subagent state, or completion signal for the delegated task. |
@@ -144,7 +147,26 @@ for subagent in stream.subagents:
 
 Coordinator and subagent output often interleave. Consume projections concurrently when you need live UI updates.
 
-Use `stream.interleave(...)` when you want one sync loop over multiple projections:
+For concurrent consumption in async code, use `astream_events` with `asyncio.gather`:
+
+```py
+import asyncio
+
+stream = await agent.astream_events(input, version="v3")
+
+async def consume_coordinator():
+    async for message in stream.messages:
+        print("[coordinator]", await message.text)
+
+async def consume_subagents():
+    async for subagent in stream.subagents:
+        async for message in subagent.messages:
+            print(f"[{subagent.name}]", await message.text)
+
+await asyncio.gather(consume_coordinator(), consume_subagents())
+```
+
+For synchronous code, use `stream.interleave(...)` instead:
 
 ```py
 stream = agent.stream_events(input, version="v3")
@@ -169,15 +191,19 @@ for event in stream:
     if event.get("method") != "messages":
         continue
 
-    payload = event["params"]["data"]
+    payload = event["params"]["data"][0]
+    if not isinstance(payload, dict):
+        continue
     if payload.get("event") != "content-block-delta":
         continue
 
     block = payload.get("delta") or {}
-    if block.get("type") == "text":
+    if block.get("type") == "text-delta":
         source = "subagent" if event["params"]["namespace"] else "coordinator"
-        print(f"[{source}] {block['text']}", end="", flush=True)
+        print(f"[{source}] {block['text']}")
 ```
+
+
 
 
 ## Subagents versus subgraphs
